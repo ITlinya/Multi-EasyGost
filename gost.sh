@@ -2,12 +2,13 @@
 Green_font_prefix="\033[32m" && Red_font_prefix="\033[31m" && Green_background_prefix="\033[42;37m" && Font_color_suffix="\033[0m"
 Info="${Green_font_prefix}[信息]${Font_color_suffix}"
 Error="${Red_font_prefix}[错误]${Font_color_suffix}"
-shell_version="1.1.0"
+shell_version="1.1.1"
+ct_new_ver="2.11.2" # 2.x 不再跟随官方更新
 gost_conf_path="/etc/gost/config.json"
 raw_conf_path="/etc/gost/rawconf"
 function checknew() {
   checknew=$(gost -V 2>&1 | awk '{print $2}')
-  check_new_ver
+  # check_new_ver
   echo "你的gost版本为:""$checknew"""
   echo -n 是否更新\(y/n\)\:
   read checknewnum
@@ -61,9 +62,10 @@ function check_root() {
   [[ $EUID != 0 ]] && echo -e "${Error} 当前非ROOT账号(或没有ROOT权限)，无法继续操作，请更换ROOT账号或使用 ${Green_background_prefix}sudo su${Font_color_suffix} 命令获取临时ROOT权限（执行后可能会提示输入当前账号的密码）。" && exit 1
 }
 function check_new_ver() {
-  ct_new_ver=$(wget --no-check-certificate -qO- -t2 -T3 https://api.github.com/repos/ginuerzh/gost/releases/latest | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g;s/v//g')
+  # deprecated
+  ct_new_ver=$(wget --no-check-certificate -qO- -t2 -T3 https://proxy.lblog.net/https://api.github.com/repos/ginuerzh/gost/releases/latest | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g;s/v//g')
   if [[ -z ${ct_new_ver} ]]; then
-    ct_new_ver="2.11.1"
+    ct_new_ver="2.11.2"
     echo -e "${Error} gost 最新版本获取失败，正在下载v${ct_new_ver}版"
   else
     echo -e "${Info} gost 目前最新版本为 ${ct_new_ver}"
@@ -89,7 +91,7 @@ function Install_ct() {
   Installation_dependency
   check_file
   check_sys
-  check_new_ver
+  # check_new_ver
   echo -e "若为国内机器建议使用大陆镜像加速下载"
   read -e -p "是否使用？[y/n]:" addyn
   [[ -z ${addyn} ]] && addyn="n"
@@ -104,13 +106,13 @@ function Install_ct() {
     mkdir /etc/gost && wget --no-check-certificate https://gotunnel.oss-cn-shenzhen.aliyuncs.com/config.json && mv config.json /etc/gost && chmod -R 777 /etc/gost
   else
     rm -rf gost-linux-"$bit"-"$ct_new_ver".gz
-    wget --no-check-certificate https://github.com/ginuerzh/gost/releases/download/v"$ct_new_ver"/gost-linux-"$bit"-"$ct_new_ver".gz
+    wget --no-check-certificate https://proxy.lblog.net/https://github.com/ginuerzh/gost/releases/download/v"$ct_new_ver"/gost-linux-"$bit"-"$ct_new_ver".gz
     gunzip gost-linux-"$bit"-"$ct_new_ver".gz
     mv gost-linux-"$bit"-"$ct_new_ver" gost
     mv gost /usr/bin/gost
     chmod -R 777 /usr/bin/gost
-    wget --no-check-certificate https://raw.githubusercontent.com/KANIKIG/Multi-EasyGost/master/gost.service && chmod -R 777 gost.service && mv gost.service /usr/lib/systemd/system
-    mkdir /etc/gost && wget --no-check-certificate https://raw.githubusercontent.com/KANIKIG/Multi-EasyGost/master/config.json && mv config.json /etc/gost && chmod -R 777 /etc/gost
+    wget --no-check-certificate https://proxy.lblog.net/https://raw.githubusercontent.com/KANIKIG/Multi-EasyGost/master/gost.service && chmod -R 777 gost.service && mv gost.service /usr/lib/systemd/system
+    mkdir /etc/gost && wget --no-check-certificate https://proxy.lblog.net/https://raw.githubusercontent.com/KANIKIG/Multi-EasyGost/master/config.json && mv config.json /etc/gost && chmod -R 777 /etc/gost
   fi
 
   systemctl enable gost && systemctl restart gost
@@ -165,7 +167,7 @@ function read_protocol() {
   echo -e "说明: 对于经由gost加密中转的流量, 通过此选项进行解密并转发给本机的代理服务端口或转发给其他远程机器"
   echo -e "      一般设置在用于接收中转流量的国外机器上"
   echo -e "-----------------------------------"
-  echo -e "[4] 一键安装ss/socks5代理"
+  echo -e "[4] 一键安装ss/socks5/http代理"
   echo -e "说明: 使用gost内置的代理协议，轻量且易于管理"
   echo -e "-----------------------------------"
   echo -e "[5] 进阶：多落地均衡负载"
@@ -200,6 +202,9 @@ function read_s_port() {
   elif [ "$flag_a" == "socks" ]; then
     echo -e "-----------------------------------"
     read -p "请输入socks密码: " flag_b
+  elif [ "$flag_a" == "http" ]; then
+    echo -e "-----------------------------------"
+    read -p "请输入http密码: " flag_b
   else
     echo -e "------------------------------------------------------------------"
     echo -e "请问你要将本机哪个端口接收到的流量进行转发?"
@@ -239,6 +244,9 @@ function read_d_ip() {
   elif [ "$flag_a" == "socks" ]; then
     echo -e "-----------------------------------"
     read -p "请输入socks用户名: " flag_c
+  elif [ "$flag_a" == "http" ]; then
+    echo -e "-----------------------------------"
+    read -p "请输入http用户名: " flag_c
   elif [[ "$flag_a" == "peer"* ]]; then
     echo -e "------------------------------------------------------------------"
     echo -e "请输入落地列表文件名"
@@ -303,6 +311,10 @@ function read_d_port() {
   elif [ "$flag_a" == "socks" ]; then
     echo -e "------------------------------------------------------------------"
     echo -e "请问你要设置socks代理服务的端口?"
+    read -p "请输入: " flag_d
+  elif [ "$flag_a" == "http" ]; then
+    echo -e "------------------------------------------------------------------"
+    echo -e "请问你要设置http代理服务的端口?"
     read -p "请输入: " flag_d
   elif [[ "$flag_a" == "peer"* ]]; then
     echo -e "------------------------------------------------------------------"
@@ -479,7 +491,7 @@ function cert() {
     echo -e "[2] Cloudflare DNS API 申请（需要输入APIKEY）"
     echo -e "-----------------------------------"
     read -p "请选择证书申请方式: " certmethod
-    if [ "certmethod" == "1" ]; then
+    if [ "$certmethod" == "1" ]; then
       echo -e "请确认本机${Red_font_prefix}80${Font_color_suffix}端口未被占用, 否则会申请失败"
       if "$HOME"/.acme.sh/acme.sh --issue -d "${domain}" --standalone -k ec-256 --force; then
         echo -e "SSL 证书生成成功，默认申请高安全性的ECC证书"
@@ -557,12 +569,15 @@ function proxy() {
   echo -e "-----------------------------------"
   echo -e "[1] shadowsocks"
   echo -e "[2] socks5(强烈建议加隧道用于Telegram代理)"
+  echo -e "[3] http"
   echo -e "-----------------------------------"
   read -p "请选择代理类型: " numproxy
   if [ "$numproxy" == "1" ]; then
     flag_a="ss"
   elif [ "$numproxy" == "2" ]; then
     flag_a="socks"
+  elif [ "$numproxy" == "3" ]; then
+    flag_a="http"
   else
     echo "type error, please try again"
     exit
@@ -645,6 +660,8 @@ function method() {
       echo "        \"ss://$d_ip:$s_port@:$d_port\"" >>$gost_conf_path
     elif [ "$is_encrypt" == "socks" ]; then
       echo "        \"socks5://$d_ip:$s_port@:$d_port\"" >>$gost_conf_path
+    elif [ "$is_encrypt" == "http" ]; then
+      echo "        \"http://$d_ip:$s_port@:$d_port\"" >>$gost_conf_path
     else
       echo "config error"
     fi
@@ -724,6 +741,8 @@ function method() {
       echo "        \"ss://$d_ip:$s_port@:$d_port\"" >>$gost_conf_path
     elif [ "$is_encrypt" == "socks" ]; then
       echo "        \"socks5://$d_ip:$s_port@:$d_port\"" >>$gost_conf_path
+    elif [ "$is_encrypt" == "http" ]; then
+      echo "        \"http://$d_ip:$s_port@:$d_port\"" >>$gost_conf_path
     else
       echo "config error"
     fi
@@ -796,6 +815,8 @@ function show_all_conf() {
       str="   ss   "
     elif [ "$is_encrypt" == "socks" ]; then
       str=" socks5 "
+    elif [ "$is_encrypt" == "http" ]; then
+      str=" http "
     elif [ "$is_encrypt" == "cdnno" ]; then
       str="不加密转发CDN"
     elif [ "$is_encrypt" == "cdnws" ]; then
